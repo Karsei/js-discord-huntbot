@@ -21,6 +21,9 @@ const request = require('request');
 const Discord = require('discord.js');
 const client = new Discord.Client();
 
+/************************************************
+ * CLASSES
+*************************************************/
 /**
  * 로그 클래스
  */
@@ -66,72 +69,104 @@ class Logger {
         console.log('[' + new Date().format('yyyy/MM/dd HH:mm:ss') + '] ' + pMsg);
     }
 }
-const logger = new Logger();
 
-/**
- * 상수
- */
+
+/************************************************
+ * CONSTANTS
+*************************************************/
+// Application
+const APP_TITLE = 'FFXIV HAEDAL HUNT BOT';
+const APP_DETAIL_TITLE = 'Final Fantasy XIV Haedal Automatic Hunt Tracer Bot';
+const APP_VERSION = '0.1.2';
+
 // Embed 아래 제목
 const DISCORD_TITLE_ABB = 'FFXIV HAEDAL HUNT Notification';
+
 // 토큰
 const DISCORD_BOT_CLIENT_TOKEN = process.env.BOT_CLIENT_TOKEN;
 const DISCORD_BOT_MSG_CHANNEL_ID = process.env.BOT_MSG_CHANNEL_ID;
 // 서버 목록
-const allServers = {
+const FFXIV_ALL_SERVERS = {
     primal: [
-        { name: 'Behemoth', code: 0 },
-        { name: 'Excalibur', code: 0 },
-        { name: 'Exodus', code: 0 },
-        { name: 'Famfrit', code: 0 },
+        { name: 'Behemoth', code: 78 },
+        { name: 'Excalibur', code: 93 },
+        { name: 'Exodus', code: 53 },
+        { name: 'Famfrit', code: 35 },
         { name: 'Hyperion', code: 95 },
-        { name: 'Lamia', code: 0 },
-        { name: 'Leviathan', code: 0 },
-        { name: 'Ultros', code: 0 }
+        { name: 'Lamia', code: 55 },
+        { name: 'Leviathan', code: 64 },
+        { name: 'Ultros', code: 77 }
     ]
 };
+// 로거
+const logger = new Logger();
 
+/************************************************
+ * VARIABLES
+*************************************************/
 // 디버깅
 let _DEBUG_ = false;
 // 몬스터 정보 데이터
-let mobRealStatus = {
+let xivMobRealStatus = {
     mobPools: [],       // 메세지 풀
     notifiedId: [],     // 토벌 보고 몬스터 ID
     lastMobData: {}     // 토벌 보고 정보 목록
 };
+// 인증 토큰 데이터
+let xivTokenData = {};
 // 봇 로그인 여부
-let isLoggonBot = false;
+let sysStatus = {
+    discord_logon_bot: false,
+    websocket_logon: false
+};
 
-logger.T('---------------------------------------------------------------');
-logger.T(' Final Fantasy XIV Automatic Hunt Tracer By XIV Hunt');
-logger.T(' Author By. Karsei');
-logger.T('---------------------------------------------------------------');
 
-// 마물 데이터 로드
-logger.T('마물 데이터를 로드하고 있습니다...');
-let huntListData = JSON.parse(fs.readFileSync('./huntlist.json'));
-function getHuntData(pHuntId) {
+/************************************************
+ * FUNCTIONS
+*************************************************/
+/**
+ * 마물 데이터 정보 조회
+ * 
+ * @param {integer} pHuntId     몬스터 번호
+ */
+function _getHuntData(pHuntId) {
     return huntListData[pHuntId];
 }
 
+/**
+ * POOL 초기화
+ */
 function _purgePool() {
-    mobRealStatus = {
+    xivMobRealStatus = {
         mobPools: [],       // 메세지 풀
         notifiedId: [],     // 토벌 보고 몬스터 ID
         lastMobData: {}     // 토벌 보고 정보 목록
     };
 }
 
+/**
+ * 개발 모드 토글
+ */
 function _toggleDevMode() {
-    if (_DEBUG_) {
-        _DEBUG_ = false;
-    } else {
-        _DEBUG_ = true;
-    }
-    return _DEBUG_;
+    return _DEBUG_ = !_DEBUG_;
 }
 
+
+/************************************************
+ * MAIN
+*************************************************/
+logger.T('---------------------------------------------------------------');
+logger.T(` ${APP_DETAIL_TITLE}`);
+logger.T(' Author By. Karsei');
+logger.T('---------------------------------------------------------------');
+
+// 마물 데이터 로드 (B, A, S급 마물)
+logger.T('마물 데이터를 로드하고 있습니다...');
+let huntListData = JSON.parse(fs.readFileSync('./huntlist.json'));
+logger.T(`총 ${huntListData.length}개 로드 완료`);
+
 // 디스코드 봇 접속 시도
-// https://www.devdungeon.com/content/javascript-discord-bot-tutorial
+// 참고. https://www.devdungeon.com/content/javascript-discord-bot-tutorial
 logger.T('디스코드 봇에 접속하고 있습니다...');
 client.login(DISCORD_BOT_CLIENT_TOKEN)
     .then(() => {
@@ -141,15 +176,17 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
 
         logger.T('디스코드 봇 접속 성공!');
         setTimeout(() => {
-            if (!isLoggonBot) {
+            if (!sysStatus.discord_logon_bot) {
                 logger.T('디스코드 봇에 접속 성공하였으나 로그인 감지를 하지 못하여 봇 해제 후 다시 접속을 시도합니다...');
                 client.destroy().then(() => client.login(DISCORD_BOT_CLIENT_TOKEN));
             }
         }, 5000);
 
+        // 디스코드 봇 로그인
         client.on('ready', () => {
             // 봇 로그인 완료 플래그 설정
-            isLoggonBot = true;
+            sysStatus.discord_logon_bot = true;
+
             // POOL 초기화
             _purgePool();
 
@@ -169,8 +206,8 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
             discordChMsg.send({
                 embed: {
                     color: parseInt('a1eb34', 16),
-                    title: 'FFXIV HAEDAL HUNT BOT v0.1.1(Beta)',
-                    description: 'Primals 데이터센터의 모든 서버 마물 정보를 알려주는 디스코드봇.\n문제 발견 시 제보 환영',
+                    title: `${APP_TITLE} v${APP_VERSION}(Beta)`,
+                    description: 'Primals 데이터센터의 모든 서버 마물 정보를 알려주는 디스코드봇\n문제 발견 시 제보 환영!',
                     fields: [
                         { name: '만든이', value: 'Retou Sai (Hyperion)'}
                     ],
@@ -209,13 +246,14 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                     process.exit();
                 }
                 logger.T(`인증 토큰 발급 성공! (코드: ${pNeoRes.statusCode})`);
-                let tokenData = JSON.parse(pNegoBody);
-                console.log(tokenData);
+                xivTokenData = JSON.parse(pNegoBody);
+                if (_DEBUG_)    console.log(xivTokenData);
                 
+                // 마물 웹 소켓 연결 시도
                 logger.T(`2초 후 글로벌 마물 웹 소켓 연결 시도를 시작합니다.`);
                 if (_DEBUG_) { _discordDebug_Msg(discordChMsg, '마물 사이트와 소켓 연결 시도중...'); }
                 setTimeout(() => {
-                    let hunt_Str = 'wss://horus-hunts.net/signalr/connect?transport=webSockets&clientProtocol=2.0&__Loc=/Tracker/Primal&__HW=Hyperion&__DC=Primal&__SS=' + new Date().format('yyyy-MM-dd HH:mm:ss') + '&connectionToken=' + encodeURIComponent(tokenData.ConnectionToken) + '&connectionData=[{"name":"huntshub"}]&tid=0';
+                    let hunt_Str = 'wss://horus-hunts.net/signalr/connect?transport=webSockets&clientProtocol=2.0&__Loc=/Tracker/Primal&__HW=Hyperion&__DC=Primal&__SS=' + new Date().format('yyyy-MM-dd HH:mm:ss') + '&connectionToken=' + encodeURIComponent(xivTokenData.ConnectionToken) + '&connectionData=[{"name":"huntshub"}]&tid=0';
                     logger.T(`글로벌 마물 웹 소켓 연결 시도를 진행합니다... (주소: ${hunt_Str}, 인코딩 주소: ${encodeURI(hunt_Str)})`);
                     ws.on('connectFailed', pConError => {
                         if (_DEBUG_) { _discordDebug_Msg(discordChMsg, '소켓 연결 실패'); }
@@ -224,6 +262,8 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                         process.exit();
                     });
                     ws.on('connect', pConnection => {
+                        sysStatus.websocket_logon = true;
+
                         logger.T('글로벌 마물 웹 소켓 연결 성공!');
                         pConnection.on('error', pCSError => {
                             logger.T('글로벌 마물 웹 소켓 연결에서 오류가 발생했습니다.');
@@ -237,7 +277,7 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                         });
                         pConnection.on('message', pCSMsg => {
                             if (pCSMsg.type === 'utf8') {
-                                logger.T('Received: "' + pCSMsg.utf8Data + '"');
+                                logger.T('받음: "' + pCSMsg.utf8Data + '"');
 
                                 let msgScan = JSON.parse(pCSMsg.utf8Data);
                                 if (msgScan.hasOwnProperty('M') && msgScan.M.length > 0 && msgScan.M[0].hasOwnProperty('M')) {
@@ -248,21 +288,21 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
 
                                             // 이미 풀에 쌓여있는지 확인한다.
                                             let isFound = false;
-                                            for (let poolIdx in mobRealStatus.mobPools) {
-                                                if (mobRealStatus.mobPools[poolIdx].mobId == msgScan.M[0].A[0].data.id && mobRealStatus.mobPools[poolIdx].mobInstance == msgScan.M[0].A[0].data.instance) {
+                                            for (let poolIdx in xivMobRealStatus.mobPools) {
+                                                if (xivMobRealStatus.mobPools[poolIdx].mobId == msgScan.M[0].A[0].data.id && xivMobRealStatus.mobPools[poolIdx].mobInstance == msgScan.M[0].A[0].data.instance) {
                                                     isFound = true;
                                                     break;
                                                 }
                                             }
                                             if (!isFound) {
-                                                let lastAliveDate = new Date(msgScan.M[0].A[0].data.lastAlive).format('yyyy/MM/dd HH:mm:ss');
+                                                //let lastAliveDate = new Date(msgScan.M[0].A[0].data.lastAlive).format('yyyy/MM/dd HH:mm:ss');
                                                 let embedSet = null;
                                                 if (_DEBUG_) {
                                                     embedSet = {
                                                         embed: {
                                                             color: parseInt('3498db', 16),
-                                                            title: `[${msgScan.M[0].A[0].data.server}] Rank ${getHuntData(msgScan.M[0].A[0].data.id).rank}: ${getHuntData(msgScan.M[0].A[0].data.id).name}`,
-                                                            description: `${getHuntData(msgScan.M[0].A[0].data.id).zone} (X: ${msgScan.M[0].A[0].data.x}, Y: ${msgScan.M[0].A[0].data.y})\n인스턴스 ${msgScan.M[0].A[0].data.instance}`,
+                                                            title: `[${msgScan.M[0].A[0].data.server}] Rank ${_getHuntData(msgScan.M[0].A[0].data.id).rank}: ${_getHuntData(msgScan.M[0].A[0].data.id).name}`,
+                                                            description: `${_getHuntData(msgScan.M[0].A[0].data.id).zone} (X: ${msgScan.M[0].A[0].data.x}, Y: ${msgScan.M[0].A[0].data.y}) - 인스턴스 ${msgScan.M[0].A[0].data.instance}`,
                                                             fields: [
                                                                 { name: 'DEBUG', value: pCSMsg.utf8Data }],
                                                             timestamp: new Date()
@@ -272,53 +312,54 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                                                     embedSet = {
                                                         embed: {
                                                             color: parseInt('3498db', 16),
-                                                            title: `[${msgScan.M[0].A[0].data.server}] Rank ${getHuntData(msgScan.M[0].A[0].data.id).rank}: ${getHuntData(msgScan.M[0].A[0].data.id).name}`,
-                                                            description: `${getHuntData(msgScan.M[0].A[0].data.id).zone} (X: ${msgScan.M[0].A[0].data.x}, Y: ${msgScan.M[0].A[0].data.y})\n인스턴스 ${msgScan.M[0].A[0].data.instance}`,
+                                                            title: `[${msgScan.M[0].A[0].data.server}] Rank ${_getHuntData(msgScan.M[0].A[0].data.id).rank}: ${_getHuntData(msgScan.M[0].A[0].data.id).name}`,
+                                                            description: `${_getHuntData(msgScan.M[0].A[0].data.id).zone} (X: ${msgScan.M[0].A[0].data.x}, Y: ${msgScan.M[0].A[0].data.y}) - 인스턴스 ${msgScan.M[0].A[0].data.instance}`,
                                                             timestamp: new Date()
                                                         }
                                                     };
                                                 }
-                                                discordChMsg.send(`${getHuntData(msgScan.M[0].A[0].data.id).rank} 마물 등장!`, embedSet)
+                                                discordChMsg.send(`${_getHuntData(msgScan.M[0].A[0].data.id).rank} 마물 등장!`, embedSet)
                                                     .then(objDetResMsg => {
                                                         let thisId = objDetResMsg.id;
-                                                        console.log(`ID: ${thisId}`);
-                                                        console.log(`LAST ID: ${discordChMsg.lastMessageID}`)
-                                                        //discordChMsg.send('MSG ID: '+ discordChMsg.lastMessageID);
-                                                        mobRealStatus.mobPools.push({ msgId: thisId, mobId: msgScan.M[0].A[0].data.id, mobInstance: msgScan.M[0].A[0].data.instance, lastEmbed: JSON.parse(JSON.stringify(embedSet)) });
+                                                        xivMobRealStatus.mobPools.push({ msgId: thisId, mobId: msgScan.M[0].A[0].data.id, mobInstance: msgScan.M[0].A[0].data.instance, lastEmbed: JSON.parse(JSON.stringify(embedSet)) });
                                                     });
                                             }
-                                            console.log('[마물 등장] 현재 쌓인 마물 메세지 풀');
-                                            console.log(mobRealStatus.mobPools);
+                                            if (_DEBUG_) {
+                                                console.log('[마물 등장] 현재 쌓인 마물 메세지 풀');
+                                                console.log(xivMobRealStatus.mobPools);
+                                            }
                                             break;
                                         case 'notifyReportConfirm':
+                                            xivMobRealStatus.notifiedId.push(msgScan.M[0].A[0].id);
                                             logger.T('마물 토벌 보고됨');
-                                            mobRealStatus.notifiedId.push(msgScan.M[0].A[0].id);
-                                            console.log(mobRealStatus.notifiedId);
+                                            console.log(xivMobRealStatus.notifiedId);
                                             break;
                                         case 'updateHunts':
                                             logger.T('마물 정보 갱신됨');
-                                            mobRealStatus.lastMobData = msgScan.M[0].A[0].timers;
-                                            for (let mobIdx in mobRealStatus.lastMobData) {
+                                            xivMobRealStatus.lastMobData = msgScan.M[0].A[0].timers;
+                                            for (let mobIdx in xivMobRealStatus.lastMobData) {
                                                 let mobKeyInfo = mobIdx.split('_');
-                                                if (mobRealStatus.lastMobData[mobIdx].hasOwnProperty('repId')) {
-                                                    let posIdx = mobRealStatus.notifiedId.indexOf(mobRealStatus.lastMobData[mobIdx].repId);
+                                                if (xivMobRealStatus.lastMobData[mobIdx].hasOwnProperty('repId')) {
+                                                    let posIdx = xivMobRealStatus.notifiedId.indexOf(xivMobRealStatus.lastMobData[mobIdx].repId);
                                                     if (posIdx !== -1) {
-                                                        mobRealStatus.notifiedId.splice(posIdx, 1);
-                                                        console.log(`마물 토벌됨: ${mobKeyInfo[0]} (인스턴스 ${mobKeyInfo[1]})`);
-                                                        //discordChMsg.send(`마물 토벌됨: ${mobKeyInfo[0]} (인스턴스 ${mobKeyInfo[1]})`);
+                                                        xivMobRealStatus.notifiedId.splice(posIdx, 1);
+                                                        logger.T(`마물 토벌됨: ${_getHuntData(mobKeyInfo[0]).rank} (${mobKeyInfo[0]}) - 인스턴스 ${mobKeyInfo[1]}`);
 
-                                                        console.log('[마물 갱신] 처리 전 현재 쌓인 마물 메세지 풀');
-                                                        console.log(mobRealStatus.mobPools);
-                                                        for (let poolIdx in mobRealStatus.mobPools) {
-                                                            if (mobRealStatus.mobPools[poolIdx].mobId == parseInt(mobKeyInfo[0]) && mobRealStatus.mobPools[poolIdx].mobInstance == parseInt(mobKeyInfo[1])) {
-                                                                discordChMsg.fetchMessage(mobRealStatus.mobPools[poolIdx].msgId)
+                                                        if (_DEBUG_) {
+                                                            console.log('[마물 갱신] 처리 전 현재 쌓인 마물 메세지 풀');
+                                                            console.log(xivMobRealStatus.mobPools);
+                                                        }
+                                                        for (let poolIdx in xivMobRealStatus.mobPools) {
+                                                            if (xivMobRealStatus.mobPools[poolIdx].mobId == parseInt(mobKeyInfo[0]) && xivMobRealStatus.mobPools[poolIdx].mobInstance == parseInt(mobKeyInfo[1])) {
+                                                                discordChMsg.fetchMessage(xivMobRealStatus.mobPools[poolIdx].msgId)
                                                                     .then(objFetMsg => {
-                                                                        let tempEmbed = mobRealStatus.mobPools[poolIdx].lastEmbed;
+                                                                        let tempEmbed = xivMobRealStatus.mobPools[poolIdx].lastEmbed;
                                                                         tempEmbed.embed.color = parseInt('c9c9c9', 16);
                                                                         objFetMsg.edit('토벌 완료', tempEmbed);
-                                                                        console.log('삭제 대상');
-                                                                        console.log(mobRealStatus.mobPools[poolIdx]);
-                                                                        mobRealStatus.mobPools.splice(poolIdx, 1);
+                                                                        xivMobRealStatus.mobPools.splice(poolIdx, 1);
+
+                                                                        logger.T('삭제 대상');
+                                                                        console.log(xivMobRealStatus.mobPools[poolIdx]);
                                                                     });
                                                             }
                                                         }
@@ -343,7 +384,7 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                                     '__HW': 'Hyperion',
                                     '__DC': 'Primal',
                                     '__SS': new Date().format('yyyy-MM-dd HH:mm:ss'),
-                                    'connectionToken': tokenData.ConnectionToken,
+                                    'connectionToken': xivTokenData.ConnectionToken,
                                     'connectionData': '[{"name":"huntshub"}]',
                                     '_': new Date().getTime()
                                 }
@@ -365,22 +406,24 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                 
                                     logger.T('메세지를 받을 서버를 추가합니다...');
                                     let insertAddServer = () => {
-                                        for (let dcIdx in allServers) {
+                                        for (let dcIdx in FFXIV_ALL_SERVERS) {
                                             let sidx = 0;
-                                            for (let sIdx in allServers[dcIdx]) {
+                                            for (let sIdx in FFXIV_ALL_SERVERS[dcIdx]) {
                                                 ((_name, _x) => {
                                                     setTimeout(() => {
                                                         let sendStr = `{"H":"huntshub","M":"addToWorld","A":["${_name}"],"I":${_x}}`;
-                                                        console.log('Send: ' + sendStr);
+                                                        logger.T(`보냄: ${sendStr}`);
                                                         pConnection.send(sendStr.toString());
                                                     }, 100 * _x);
-                                                })(allServers[dcIdx][sIdx].name, sidx);
+                                                })(FFXIV_ALL_SERVERS[dcIdx][sIdx].name, sidx);
                                                 ++sidx;
                                             }
                                         }
                                     };
                                     if (pConnection.connected) {
+                                        // 메세지 받을 서버 추가
                                         insertAddServer();
+
                                         logger.T('완료!');
                                         if (_DEBUG_) { _discordDebug_Msg(discordChMsg, '정상적으로 모두 진행 완료'); }
                                     } else {
@@ -401,19 +444,23 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
             });
         });
 
+        // 디스코드 메시지 감지
         client.on('message', oMsg => {
-            console.log(oMsg.id);
+            // if (_DEBUG_) { logger.T(`메세지 감지 => ${oMsg.content}`); }
             switch (oMsg.content.toUpperCase()) {
+                // 디스코드 봇 초기화
                 case ';!RESET':
                     oMsg.channel.send('초기화합니다...')
                         .then(msg => client.destroy())
                         .then(() => client.login(DISCORD_BOT_CLIENT_TOKEN));
                     break;
+                // 프로세스 종료
                 case ';!EXIT':
                     oMsg.channel.send('봇을 오프라인으로 전환하고 서버를 종료합니다...')
                         .then(msg => client.destroy())
                         .then(() => process.exit());
                     break;
+                // PING
                 case ';!PING':
                     oMsg.channel.send('PONG', {
                         embed: {
@@ -430,15 +477,18 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                             }
                         }
                     });
-                    oMsg.channel.send('ID: '+ oMsg.channel.lastMessageID);
                     break;
+                // 메시지 POOL 삭제
                 case ';!PURGEPOOL':
                     oMsg.channel.send('메세지 POOL을 삭제합니다...')
                         .then(msg => {
+                            // POOL 삭제
                             _purgePool();
+
                             msg.channel.send('메세지 POOL을 성공적으로 삭제하였습니다.');
                         });
                     break;
+                // 개발 모드 토글
                 case ';!TOGGLEDEV':
                     oMsg.channel.send('개발 모드를 토글합니다...')
                         .then(msg => {
@@ -447,9 +497,69 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                             else            msg.channel.send('개발 모드가 비활성화되었습니다.');
                         });
                     break;
+                // 서버 상태 확인
+                case ';!STATUS':
+                    let _msgIdStr = xivMobRealStatus.mobPools.map((pMob) => { return pMob.msgId; }).join(',');
+                    oMsg.channel.send('현재 서버 상태입니다.', {
+                        embed: {
+                            color: parseInt('f5df38', 16),
+                            title: 'Server Status',
+                            description: `[Connection Token]\n${xivTokenData.ConnectionToken}`,
+                            fields: [
+                                { name: 'Message Pools', value: `${xivMobRealStatus.mobPools.length}개` },
+                                { name: 'Killed Id Pools', value: `${xivMobRealStatus.notifiedId.length}개` },
+                                { name: 'Message Id Waiting List', value: _msgIdStr.length > 0 ? _msgIdStr : '(대기열 없음)' }
+                            ],
+                            timestamp: new Date(),
+                            footer: {
+                                text: DISCORD_TITLE_ABB
+                            }
+                        }
+                    });
+                    logger.T(`Message Pools: ${xivMobRealStatus.mobPools.length}개`);
+                    logger.T(`Killed Id Pools: ${xivMobRealStatus.notifiedId.length}개`);
+                    logger.T(`Message Id Waiting List: ${_msgIdStr}`);
+                    break;
+                // 채널 목록 조회
+                case ';!CHANNELLIST':
+                    let _clStr = '';
+                    client.guilds.forEach((pGuild) => {
+                        // 서버
+                        _clStr += ` - [${pGuild.name}]\n`;
+                        // 채널
+                        pGuild.channels.forEach((pChannel) => { _clStr += ` -- ${pChannel.name} (${pChannel.type}) - ${pChannel.id}\n`; });
+                    });
+                    oMsg.channel.send(_clStr);
+                    break;
             }
         });
     }).catch(() => {
         logger.T('디스코드 봇 접속 오류 발생');
         process.exit();
     });
+
+// 5분 간격으로 핑 보냄
+setInterval(() => {
+    if (sysStatus.websocket_logon) {
+        let pingOption = {
+            uri: 'https://horus-hunts.net/signalr/ping',
+            qs: {
+                '__Loc': '/Tracker/Primal',
+                '__HW': '',
+                '__DC': 'Primal',
+                '__SS': new Date().format('yyyy-MM-dd HH:mm:ss'),
+                '_': new Date().getTime()
+            }
+        }
+        request.get(pingOption, function (pPingError, pPingRes, pPingBody) {
+            if (pPingError != null) {
+                logger.T('Ping Pong Error');
+                console.error(pPingError);
+            }
+            console.log(pPingBody);
+            logger.T('Ping Pong!');
+        });
+    } else {
+        logger.T('웹 소켓 연결 안됨');
+    }
+}, 300000);

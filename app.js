@@ -156,14 +156,13 @@ function _toggleDevMode() {
  * MAIN
 *************************************************/
 logger.T('---------------------------------------------------------------');
-logger.T(` ${APP_DETAIL_TITLE}`);
+logger.T(` ${APP_DETAIL_TITLE} v${APP_VERSION}`);
 logger.T(' Author By. Karsei');
 logger.T('---------------------------------------------------------------');
 
 // 마물 데이터 로드 (B, A, S급 마물)
 logger.T('마물 데이터를 로드하고 있습니다...');
 let huntListData = JSON.parse(fs.readFileSync('./huntlist.json'));
-logger.T(`총 ${huntListData.length}개 로드 완료`);
 
 // 디스코드 봇 접속 시도
 // 참고. https://www.devdungeon.com/content/javascript-discord-bot-tutorial

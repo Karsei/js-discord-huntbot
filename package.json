@@ -1,0 +1,17 @@
+{
+  "name": "haedal-hunt-bot",
+  "version": "0.1.1",
+  "description": "FFXIV Hunt Parser Bot for discord bot.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Karsei",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^11.5.1",
+    "dotenv": "^8.0.0",
+    "request": "^2.88.0",
+    "websocket": "^1.0.29"
+  }
+}

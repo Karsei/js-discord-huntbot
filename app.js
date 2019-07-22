@@ -208,6 +208,7 @@ client.login(DISCORD_BOT_CLIENT_TOKEN)
                     color: parseInt('a1eb34', 16),
                     title: `${APP_TITLE} v${APP_VERSION}(Beta)`,
                     description: 'Primals 데이터센터의 모든 서버 마물 정보를 알려주는 디스코드봇\n문제 발견 시 제보 환영!',
+                    url: 'https://gitlab.com/Karsei/js-discord-ffxivhuntbot',
                     fields: [
                         { name: '만든이', value: 'Retou Sai (Hyperion)'}
                     ],

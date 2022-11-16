@@ -1,9 +1,7 @@
-# FFXIV Haedal Hunt Bot
+# Hunt Bot
 
 디스코드 전용 마물 봇.
 https://horus-hunts.net/ 로부터 데이터를 받아와서 정보 갱신하면서 뿌려주고 현재 Primal 데이터센터만 지원.
-
-발코드로 대충 짜여져있어서 Refactoring 시급.
 
 ## Usage
 
